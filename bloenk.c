@@ -80,6 +80,7 @@ static void bloenk_set_brightness(struct led_classdev *cdev, enum led_brightness
 	for (i = 0; i < bled->mc_cdev.num_colors; ++i) {
 		subled = &bled->mc_cdev.subled_info[i];
 		if (subled->intensity != bled->intensities[i]) {
+			// Is this correct?
 			value = brightness * (subled->intensity / bled->mc_cdev.led_cdev.max_brightness);
 			bloenk_send_msg(bdev->usb_dev, subled->channel, value);
 			bled->intensities[i] = subled->intensity;
