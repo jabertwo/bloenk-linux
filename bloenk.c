@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
 #include <linux/idr.h>
 #include <linux/led-class-multicolor.h>
 #include <linux/module.h>
@@ -28,8 +30,8 @@ struct bloenk_device {
 	struct usb_device *usb_dev;
 	struct mutex io_mutex;
 	int id;
-	u8 led_count;
 	u8 current_led;
+	u8 led_count;
 	struct bloenk_led bleds[];
 };
 #define bloenk_led_to_bloenk_dev(l)                                                            \
@@ -193,5 +195,5 @@ static struct usb_driver bloenk_driver = {
 module_usb_driver(bloenk_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("klMse");
+MODULE_AUTHOR("klMse <git@dnvrqq.com>");
 MODULE_DESCRIPTION("USB driver for bloenk");
