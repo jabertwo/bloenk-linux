@@ -1,0 +1,1 @@
+SUBSYSTEM=="leds", KERNEL=="bloenk:*:*", ACTION=="add", PROGRAM="/bin/sh -c 'chmod 666 /sys/class/leds/%k/brightness /sys/class/leds/%k/multi_intensity"

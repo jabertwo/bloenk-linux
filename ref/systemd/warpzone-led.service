@@ -1,0 +1,12 @@
+[Unit]
+Description=Set LEDs to green when Warpzone is open
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/warpzone-led-monitor.sh
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
