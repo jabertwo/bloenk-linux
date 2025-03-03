@@ -1,0 +1,3 @@
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="16c0", ATTR{idProduct}=="05dc", RUN+="/sbin/modprobe bloenk"
+ACTION=="remove", SUBSYSTEM=="usb", ATTR{idVendor}=="16c0", ATTR{idProduct}=="05dc", RUN+="/sbin/modprobe -r bloenk"
+SUBSYSTEM=="leds", KERNEL=="bloenk:*:*", ACTION=="add", PROGRAM="/bin/sh -c 'chmod 666 /sys/class/leds/%k/brightness /sys/class/leds/%k/multi_intensity"
