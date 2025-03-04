@@ -14,7 +14,7 @@ GREEN=$4
 BLUE=$5
 
 # LED sysfs path (update if different)
-LED_PATH="/sys/class/leds/bloenk:0:$LEDNUM"
+LED_PATH="/sys/class/leds/bloenk0:$LEDNUM"
 
 echo $LED_PATH
 

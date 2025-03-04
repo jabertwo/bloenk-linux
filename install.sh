@@ -1,3 +1,5 @@
+#! /usr/bin/sh
+
 make
 mkdir /lib/modules/$(uname -r)/kernel/drivers/usb/bloenk
 cp bloenk.ko /lib/modules/$(uname -r)/kernel/drivers/usb/bloenk/bloenk.ko

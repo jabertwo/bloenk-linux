@@ -5,10 +5,10 @@ SPACE_API_URL="https://api.warpzone.ms/spaceapi"
 
 # Liste aller LEDs
 LED_PATHS=(
-    "/sys/class/leds/bloenk:0:0"
-    "/sys/class/leds/bloenk:0:1"
-    "/sys/class/leds/bloenk:0:2"
-    "/sys/class/leds/bloenk:0:3"
+    "/sys/class/leds/bloenk0:0"
+    "/sys/class/leds/bloenk0:1"
+    "/sys/class/leds/bloenk0:2"
+    "/sys/class/leds/bloenk0:3"
 )
 
 while true; do
