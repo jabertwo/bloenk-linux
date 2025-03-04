@@ -18,10 +18,12 @@
 #define BLOENK_RQ_GET_LEDCOUNT    6
 
 #define BLOENK_LED_SUBLEDS 3
+#define BLOENK_LED_MAX_BRIGHTNESS 255
 
 struct bloenk_led {
+	struct bloenk_device *bdev;
 	struct led_classdev_mc mc_cdev;
-	unsigned int intensities[BLOENK_LED_SUBLEDS];
+	unsigned int brightness[BLOENK_LED_SUBLEDS];
 	u8 index;
 };
 #define lcdev_to_bloenk_led(d) container_of(lcdev_to_mccdev(d), struct bloenk_led, mc_cdev)
@@ -32,10 +34,8 @@ struct bloenk_device {
 	int id;
 	u8 current_led;
 	u8 led_count;
-	struct bloenk_led bleds[];
+	struct bloenk_led bleds[] __counted_by(led_count);
 };
-#define bloenk_led_to_bloenk_dev(l)                                                            \
-	container_of((void *)l - (sizeof(struct bloenk_led) * l->index), struct bloenk_device, bleds)
 
 static const struct mc_subled channels[BLOENK_LED_SUBLEDS] = {
 	{
@@ -61,38 +61,45 @@ static int bloenk_send_msg(struct usb_device *dev, u8 request, u8 value)
 			       USB_CTRL_SET_TIMEOUT);
 }
 
-static void bloenk_set_brightness(struct led_classdev *cdev, enum led_brightness brightness)
+static int bloenk_set_brightness(struct led_classdev *cdev, enum led_brightness brightness)
 {
 	struct bloenk_led *bled;
 	struct bloenk_device *bdev;
 	struct mc_subled *subled;
 	bool changed = false;
-	u8 value;
-	int i;
+	int i, ret;
 
 	bled = lcdev_to_bloenk_led(cdev);
-	bdev = bloenk_led_to_bloenk_dev(bled);
+	bdev = bled->bdev;
 
 	mutex_lock(&bdev->io_mutex);
+
+	led_mc_calc_color_components(&bled->mc_cdev, brightness);
 	if (bdev->current_led != bled->index) {
-		bloenk_send_msg(bdev->usb_dev, BLOENK_RQ_SET_CURRENT_LED, bled->index);
+		ret = bloenk_send_msg(bdev->usb_dev, BLOENK_RQ_SET_CURRENT_LED, bled->index);
+		if (ret < 0)
+			goto out;
 		bdev->current_led = bled->index;
 	}
 
 	for (i = 0; i < bled->mc_cdev.num_colors; ++i) {
 		subled = &bled->mc_cdev.subled_info[i];
-		if (subled->intensity != bled->intensities[i]) {
-			// Is this correct?
-			value = brightness * (subled->intensity / bled->mc_cdev.led_cdev.max_brightness);
-			bloenk_send_msg(bdev->usb_dev, subled->channel, value);
-			bled->intensities[i] = subled->intensity;
+		if (subled->brightness != bled->brightness[i]) {
+			ret = bloenk_send_msg(bdev->usb_dev, subled->channel, subled->brightness);
+			if (ret < 0)
+				goto out;
+			bled->brightness[i] = subled->brightness;
 			changed = true;
 		}
 	}
 
 	if (changed)
-		bloenk_send_msg(bdev->usb_dev, BLOENK_RQ_WRITE_TO_LEDS, 0);
+		ret = bloenk_send_msg(bdev->usb_dev, BLOENK_RQ_WRITE_TO_LEDS, 0);
+
+out:
 	mutex_unlock(&bdev->io_mutex);
+
+	return ret < 0 ? ret : 0;
 }
 
 static int bloenk_probe(struct usb_interface *interface, const struct usb_device_id *id)
@@ -116,12 +123,13 @@ static int bloenk_probe(struct usb_interface *interface, const struct usb_device
 
 	for (i = 0; i < led_count; ++i) {
 		bled = &bdev->bleds[i];
+		bled->bdev = bdev;
 		bled->index = i;
 
 		bled->mc_cdev.led_cdev.color = LED_COLOR_ID_MULTI;
-		bled->mc_cdev.led_cdev.max_brightness = 255;
-		bled->mc_cdev.led_cdev.brightness_set = bloenk_set_brightness;
-		bled->mc_cdev.led_cdev.name = kasprintf(GFP_KERNEL, "bloenk:%d:%d", bdev->id, i);
+		bled->mc_cdev.led_cdev.max_brightness = BLOENK_LED_MAX_BRIGHTNESS;
+		bled->mc_cdev.led_cdev.brightness_set_blocking = bloenk_set_brightness;
+		bled->mc_cdev.led_cdev.name = kasprintf(GFP_KERNEL, "bloenk%d:%d", bdev->id, i);
 		if (!bled->mc_cdev.led_cdev.name)
 			goto free_leds;
 
@@ -132,8 +140,10 @@ static int bloenk_probe(struct usb_interface *interface, const struct usb_device
 		memcpy(bled->mc_cdev.subled_info, channels, sizeof(channels));
 
 		retval = led_classdev_multicolor_register(&interface->dev, &bled->mc_cdev);
-		if (retval)
+		if (retval) {
+			err = retval;
 			goto free_subled;
+		}
 
 		continue;
 
