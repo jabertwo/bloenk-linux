@@ -15,7 +15,7 @@
 #define BLOENK_RQ_SET_COLOR_G     2
 #define BLOENK_RQ_SET_COLOR_B     3
 #define BLOENK_RQ_WRITE_TO_LEDS   4
-#define BLOENK_RQ_GET_LEDCOUNT    6
+#define BLOENK_RQ_GET_LEDCOUNT    20
 
 #define BLOENK_LED_SUBLEDS 3
 #define BLOENK_LED_MAX_BRIGHTNESS 255
@@ -59,6 +59,12 @@ static int bloenk_send_msg(struct usb_device *dev, u8 request, u8 value)
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0), request,
 			       USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT, value, 0, NULL, 0,
 			       USB_CTRL_SET_TIMEOUT);
+}
+
+static int bloenk_recv_msg(struct usb_device *dev, u8 request, u8 *res)
+{
+	return usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), request, USB_TYPE_VENDOR | USB_DIR_IN,
+			       0, 0, res, sizeof(*res), USB_CTRL_GET_TIMEOUT);
 }
 
 static int bloenk_set_brightness(struct led_classdev *cdev, enum led_brightness brightness)
@@ -107,9 +113,20 @@ static int bloenk_probe(struct usb_interface *interface, const struct usb_device
 	struct usb_device *usb_dev;
 	struct bloenk_device *bdev;
 	struct bloenk_led *bled;
-	int err = -ENOMEM, retval, i, led_count = 4;
+	u8 buf;
+	int err = -ENOMEM, retval, i, led_count;
 
 	usb_dev = usb_get_dev(interface_to_usbdev(interface));
+
+	retval = bloenk_recv_msg(usb_dev, BLOENK_RQ_GET_LEDCOUNT, &buf);
+	if (retval < 0) {
+		// Firmware will ignore changes to LEDs that don't exist. See
+		// https://github.com/johannes85/bloenk-hardware/blob/b76112148f874a0322c294f1665145b0c53102be/Firmware/bloenk/bloenk/main.c#L95
+		dev_warn(&usb_dev->dev, "Failed to get led count of device: %d. Assuming 4",
+			 retval);
+		led_count = 4;
+	} else
+		led_count = buf;
 
 	bdev = kzalloc(sizeof(struct bloenk_device) + sizeof(struct bloenk_led) * led_count,
 		       GFP_KERNEL);
