@@ -54,17 +54,22 @@ static const struct mc_subled channels[BLOENK_LED_SUBLEDS] = {
 
 DEFINE_IDA(bloenk_ida);
 
-static int bloenk_send_msg(struct usb_device *dev, u8 request, u8 value)
+static int bloenk_send_msg(struct usb_device *dev, u8 request, u16 value)
 {
-	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0), request,
-			       USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT, value, 0, NULL, 0,
-			       USB_CTRL_SET_TIMEOUT);
+	int ret;
+
+	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0), request,
+			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT, value, 0, NULL, 0,
+			      USB_CTRL_SET_TIMEOUT);
+
+	return ret < 0 ? ret : 0;
 }
 
 static int bloenk_recv_msg(struct usb_device *dev, u8 request, u8 *res)
 {
-	return usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), request, USB_TYPE_VENDOR | USB_DIR_IN,
-			       0, 0, res, sizeof(*res), USB_CTRL_GET_TIMEOUT);
+	return usb_control_msg_recv(dev, 0, request,
+				    USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN, 0, 0, res,
+				    sizeof(*res), USB_CTRL_GET_TIMEOUT, GFP_KERNEL);
 }
 
 static int bloenk_set_brightness(struct led_classdev *cdev, enum led_brightness brightness)
@@ -105,7 +110,7 @@ static int bloenk_set_brightness(struct led_classdev *cdev, enum led_brightness 
 out:
 	mutex_unlock(&bdev->io_mutex);
 
-	return ret < 0 ? ret : 0;
+	return ret;
 }
 
 static int bloenk_probe(struct usb_interface *interface, const struct usb_device_id *id)
