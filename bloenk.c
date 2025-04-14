@@ -151,6 +151,7 @@ static int bloenk_probe(struct usb_interface *interface, const struct usb_device
 		bled->mc_cdev.led_cdev.color = LED_COLOR_ID_MULTI;
 		bled->mc_cdev.led_cdev.max_brightness = BLOENK_LED_MAX_BRIGHTNESS;
 		bled->mc_cdev.led_cdev.brightness_set_blocking = bloenk_set_brightness;
+		bled->mc_cdev.led_cdev.flags |= LED_RETAIN_AT_SHUTDOWN;
 		bled->mc_cdev.led_cdev.name = kasprintf(GFP_KERNEL, "bloenk%d:%d", bdev->id, i);
 		if (!bled->mc_cdev.led_cdev.name)
 			goto free_leds;
